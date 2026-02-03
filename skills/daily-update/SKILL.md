@@ -50,7 +50,16 @@ Calculate ISO 8601 timestamps for query filters.
 
 ### Step 2: Query Jira Activity (REQUIRED)
 
-Use `mcp_atlassian_atl_searchJiraIssuesUsingJql` with JQL:
+**First, verify MCP server connection:**
+
+1. Call `mcp_atlassian_atl_getAccessibleAtlassianResources` to test connection
+2. If it fails or returns error:
+   - Wait 2 seconds
+   - Retry once more
+   - If still fails, inform user: "Atlassian MCP server is unavailable. Please reconnect it in VS Code settings (Ctrl+Shift+P → 'MCP: Restart Server')"
+   - STOP and do not proceed with stale data
+
+**Then query Jira with JQL:**
 ```
 (assignee = currentUser() OR reporter = currentUser() OR comment ~ currentUser()) 
 AND updated >= startOfDay(-1d)
@@ -157,9 +166,11 @@ If validation fails:
 
 ## Stop Rules (CRITICAL)
 
-1. **MCP Server Unavailable**: If `mcp_atlassian_atl_searchJiraIssuesUsingJql` or `mcp_github_github_list_commits` returns 401, 403, or connection error:
-   - STOP immediately
-   - Tell user: "Jira/GitHub MCP server unavailable. Please reconnect in VS Code settings."
+1. **MCP Server Connection Issues**: 
+   - **First**: Always call `mcp_atlassian_atl_getAccessibleAtlassianResources` to verify connection
+   - **If fails**: Wait 2 seconds, retry once
+   - **If still fails**: Tell user "Atlassian MCP server is unavailable. Please reconnect it in VS Code (Ctrl+Shift+P → 'MCP: Restart Server')" and STOP
+   - **For GitHub MCP**: If `mcp_github_github_get_me` fails, inform user similarly
    - Do NOT proceed with stale data, cached data, or assumptions
 
 2. **Config Missing**: If cannot load Jira Cloud ID or GitHub repo:
