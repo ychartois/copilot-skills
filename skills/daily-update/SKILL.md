@@ -35,8 +35,64 @@ Generates concise, stakeholder-friendly daily updates by querying actual Jira an
 ## Prerequisites
 
 - MCP servers must be connected and authenticated
+- MCP atlassian `searchJiraIssuesUsingJql` must be enabled
 - Git repository context available
 - User has Jira and GitHub activity to report
+
+## Workflow Checklist
+
+**MANDATORY: Execute ALL steps in order. Do NOT skip any step.**
+
+- [ ] Step 1: Load configuration
+- [ ] Step 2: Verify MCP connections (Jira + GitHub)
+- [ ] Step 3: Query Jira for YESTERDAY (startOfDay(-1d) to startOfDay())
+- [ ] Step 4: Query Jira for TODAY (startOfDay() onwards)
+- [ ] Step 5: Query GitHub commits (yesterday's date range)
+- [ ] Step 6: Query GitHub pull requests (updated in last 7 days)
+- [ ] Step 7: Categorize activity into Yesterday/Today/Blockers/Notes
+- [ ] Step 8: Generate output using exact template format
+- [ ] Step 9: Run validation script
+- [ ] Step 10: Confirm validation passed
+
+## Required Queries Reference
+
+When user requests a daily update, you MUST execute these exact queries:
+
+### Jira Queries (BOTH required)
+```jql
+# Query 1: Yesterday's activity
+(assignee = currentUser() OR reporter = currentUser() OR comment ~ currentUser()) 
+AND updated >= startOfDay(-1d) AND updated < startOfDay()
+ORDER BY updated DESC
+
+# Query 2: Today's activity  
+(assignee = currentUser() OR reporter = currentUser() OR comment ~ currentUser())
+AND updated >= startOfDay()
+ORDER BY updated DESC
+```
+
+### GitHub Queries (ALL required)
+```
+# Query 1: Get current user
+mcp_github_github_get_me
+
+# Query 2: Commits (yesterday onwards)
+mcp_github_github_list_commits(
+  owner, repo, 
+  author: username,
+  since: yesterday_start_timestamp,
+  perPage: 30
+)
+
+# Query 3: Pull requests (last 7 days for context)
+mcp_github_github_list_pull_requests(
+  owner, repo,
+  state: "all",
+  sort: "updated", 
+  direction: "desc",
+  perPage: 20
+)
+```
 
 ## Workflow
 
@@ -44,32 +100,36 @@ Generates concise, stakeholder-friendly daily updates by querying actual Jira an
 
 User specifies one of:
 - **today**: From start of current day (00:00) to now
-- **yesterday**: Full previous day (00:00 to 23:59)
+- **yesterday**: Full previous day (00:00 to 23:59), If previous is a Satruday or Sunday, Yesterday is the Friday
 - **week**: Last 7 days from now
 
 Calculate ISO 8601 timestamps for query filters.
 
-### Step 2: Query Jira Activity (REQUIRED)
+### Step 2: Verify MCP Server Connections (REQUIRED - DO NOT SKIP)
 
-**First, verify MCP server connection:**
+**Jira MCP verification:**
 
 1. Call `mcp_atlassian_atl_getAccessibleAtlassianResources` to test connection
 2. If it fails or returns error:
    - Wait 2 seconds
    - Retry once more
-   - If still fails, inform user: "Atlassian MCP server is unavailable. Please reconnect it in VS Code settings (Ctrl+Shift+P → 'MCP: Restart Server')"
-   - STOP and do not proceed with stale data
+   - If still fails, inform user: "Atlassian MCP server is unavailable. Please reconnect MCP Servers"
+   - **STOP - Do not proceed with stale data**
 
-**Then query Jira with JQL:**
+**GitHub MCP verification:**
+
+1. Call `mcp_github_github_get_me`
+2. If it fails, inform user: "GitHub MCP server is unavailable"
+   - **STOP - Do not proceed**
+
+### Step 3: Query Jira for YESTERDAY (REQUIRED - DO NOT SKIP)
+
+Query Jira with JQL for yesterday's activity:
 ```
 (assignee = currentUser() OR reporter = currentUser() OR comment ~ currentUser()) 
-AND updated >= startOfDay(-1d)
+AND updated >= startOfDay(-1d) AND updated < startOfDay()
+ORDER BY updated DESC
 ```
-
-Adjust date filter based on time range:
-- **today**: `updated >= startOfDay()`
-- **yesterday**: `updated >= startOfDay(-1d) AND updated < startOfDay()`
-- **week**: `updated >= startOfDay(-7d)`
 
 Extract for each issue:
 - Issue key (e.g., CTA-350)
@@ -78,53 +138,77 @@ Extract for each issue:
 - Type
 - Links to issue
 
-### Step 3: Query GitHub Activity (REQUIRED)
+### Step 4: Query Jira for TODAY (REQUIRED - DO NOT SKIP)
+
+Query Jira with JQL for today's activity:
+```
+(assignee = currentUser() OR reporter = currentUser() OR comment ~ currentUser())
+AND updated >= startOfDay()
+ORDER BY updated DESC
+```
+
+Extract same fields as Step 3.
+
+### Step 5: Query GitHub Activity (REQUIRED - DO NOT SKIP)
 
 **Get current user first**:
 ```
 mcp_github_github_get_me
 ```
 
-**Query commits**:
+**Query commits (YESTERDAY's date range)**:
 ```
-mcp_github_github_list_commits(owner, repo, author: username, since: timestamp)
+mcp_github_github_list_commits(
+  owner, repo, 
+  author: username, 
+  since: yesterday_start_timestamp,
+  perPage: 30
+)
 ```
-- Use timestamp from Step 1 for `since` parameter
+- Use yesterday's start timestamp (startOfDay(-1d))
 - Retrieve at least 30 commits to ensure coverage
 - Extract: commit SHA (first 8 chars), message (first line), Jira ticket from message
+- Group commits by Jira ticket reference
 
-**Query pull requests**:
+**Query pull requests (last 7 days for context)**:
 ```
-mcp_github_github_list_pull_requests(owner, repo, state: "all", sort: "updated", direction: "desc")
+mcp_github_github_list_pull_requests(
+  owner, repo, 
+  state: "all", 
+  sort: "updated", 
+  direction: "desc",
+  perPage: 20
+)
 ```
-- Filter PRs updated in time range
-- For each relevant PR, get reviews: `mcp_github_github_pull_request_read(method: "get_reviews")`
-- Identify PRs where user submitted review (approved, commented, requested changes)
-- Extract: PR number, title, Jira ticket, review action
+- Filter PRs updated in last 7 days
+- For each relevant PR, check if merged yesterday
+- Extract: PR number, title, Jira ticket, merged_at timestamp
 
-### Step 4: Categorize Activity
+### Step 6: Categorize Activity
 
 **Yesterday section** (what was completed):
-- PRs reviewed and approved/commented
-- Jira tickets completed (status: Done, Closed, Resolved)
-- Major commits with meaningful progress (group by Jira ticket)
+- Jira tickets updated YESTERDAY (from Step 3 query)
+- Commits from yesterday (grouped by Jira ticket)
+- PRs merged yesterday
 - New bugs/issues created
 
 **Today section** (what's planned):
-- Jira tickets in progress (status: In Progress, In Review, Need Review)
-- Planned meetings or syncs mentioned
-- Next tickets to work on
+- User's explicit focus from input (MOST IMPORTANT - use verbatim)
+- Jira tickets updated TODAY (from Step 4 query)
+- Scheduled meetings/events mentioned by user
+- Planned next steps
 
 **Blockers section**:
-- Active blockers from Jira or user's context
-- Default to "None" if no blockers
+- Extract from user input (e.g., "Android localStorage issues")
+- Jira tickets marked as blocked
+- Default to "None" if no blockers mentioned
 
 **Notes section**:
+- Additional context from user input
 - Time-sensitive items
-- Context about work in progress
-- Any important discoveries (bugs, architectural decisions)
+- Important discoveries or architectural decisions
 
-### Step 5: Generate Output
+### Step 7: Generate Output
 
 Write to output path from config using this exact format:
 
@@ -132,23 +216,90 @@ Write to output path from config using this exact format:
 ## Daily Update — {{Day}}, {{Month}} {{Date}}, {{Year}}
 
 **Yesterday:**  
-- [PR #XXX] - Brief description (Jira ticket)
-- [Jira ticket] - Brief description and status
-- Key commits grouped by ticket
-- Bugs/issues identified
+- [CTA-XXX](https://netfeasa.atlassian.net/browse/CTA-XXX) - Brief description (Status: XXX)
+- Commits: X commits on [brief description] (CTA-XXX)
+- [PR #XXX](https://github.com/owner/repo/pull/XXX) - Brief description (CTA-XXX) [merged]
 
 **Today:** 
-- Planned PRs or reviews
-- Jira tickets to work on with brief descriptions
-- Planned meetings or syncs
+- [User's explicit focus - use their exact words]
+- [CTA-XXX](https://netfeasa.atlassian.net/browse/CTA-XXX) - Planned work
+- Scheduled events: [meetings from user input]
 
 **Blockers:**  
-- Active blocker description or "None"
+- Active blocker description (extracted from user input) or "None"
 
 **Notes:**  
 - Time-sensitive context
 - Important discoveries or decisions
 ```
+
+**Linking Format:**
+- GitHub PRs: `[PR #123](https://github.com/owner/repo/pull/123)`
+- Jira tickets: `[CTA-123](https://netfeasa.atlassian.net/browse/CTA-123)`
+
+### Step 8: Validate Output (REQUIRED - DO NOT SKIP)
+
+Run validation script:
+```bash
+~/.copilot/skills/daily-update/scripts/validate-format.sh ~/.copilot/daily_update.md
+```
+
+**If validation fails:**
+- Review errors from script output
+- Fix format issues in generated content
+- Re-run validation
+- **Do not deliver output until validation passes**
+
+### Step 9: Confirm to User
+
+After successful validation, report:
+```
+✅ Generated daily update for [date]
+✅ Jira: X tickets from yesterday, Y tickets for today
+✅ GitHub: N commits from yesterday, M pull requests
+✅ Validation passed
+```
+
+## Stop Rules
+
+**HALT immediately and inform user if:**
+
+1. ❌ **Jira MCP unavailable** → "Atlassian MCP server unavailable. Please reconnect MCP servers." (Do NOT use stale data)
+2. ❌ **GitHub MCP unavailable** → "GitHub MCP server unavailable." (Do NOT proceed)
+3. ❌ **Both Jira queries return 0 results** → Ask: "No Jira activity found for yesterday or today. Is this expected (weekend/vacation)?"
+4. ❌ **Validation fails** → Fix format issues before delivering
+5. ❌ **User input unclear** → Ask: "What are you working on today?"
+
+**Never:**
+- Skip MCP verification (Steps 2, 3, 4, 5)
+- Skip validation (Step 8)
+- Proceed without querying BOTH Jira queries (yesterday AND today)
+- Proceed without querying GitHub (commits AND pull requests)
+- Deliver unvalidated output
+- Guess at missing data - always query actual sources
+- Use today's Jira data for yesterday's section (most common error)
+
+## Error Recovery
+
+If a query fails:
+1. Log the error message clearly
+2. Wait 2 seconds
+3. Retry once
+4. If still failing:
+   - Inform user with specific error: "Failed to query [source]: [error message]"
+   - Ask: "Proceed with partial data? (Missing: [source])"
+5. If user approves partial data:
+   - Add note to output: "⚠️ Note: [Source] data unavailable - [reason]"
+   - Mark affected sections clearly
+
+## Examples
+- Use actual URLs from config (GitHub repo, Jira instance)
+
+**Section Guidelines:**
+- **Yesterday**: What was actually completed (merged PRs, closed tickets, major work, bugs found)
+- **Today**: What's planned next (active tickets, planned PRs, scheduled meetings) - keep to 3-5 items
+- **Blockers**: Active impediments or "None"
+- **Notes**: Context that doesn't fit elsewhere (optional, can be brief or omitted)
 
 ### Step 6: Validate Output (REQUIRED)
 

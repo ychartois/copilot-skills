@@ -1,31 +1,11 @@
 # Daily Update Output Template
 
-## Required Format
+> **Note**: This file provides **examples** of the output format defined in `SKILL.md` Step 5.
+> The canonical format specification is in the main SKILL.md file.
 
-```markdown
-## Daily Update — {{Day}}, {{Month}} {{Date}}, {{Year}}
+## Format Defined in SKILL.md
 
-**Yesterday:**  
-- [PR #XXX] - Brief description (Jira-XXX) (Status)
-- [Jira-XXX] - Brief description and status
-- Major commits grouped by ticket
-- Bugs/issues identified
-- PR Reviewed: 
-  - [PR #XXX] - Brief description (Jira-XXX)
-  - [PR #XXX] - Brief description (Jira-XXX)
-
-**Today:** 
-- Planned PRs or reviews
-- Jira tickets to work on with brief descriptions
-- Planned meetings or syncs
-
-**Blockers:**  
-- Active blocker description or "None"
-
-**Notes:**  
-- Time-sensitive context
-- Important discoveries or decisions
-```
+The required output format is defined in SKILL.md Step 5. This file shows examples and detailed usage guidelines.
 
 ## Example Output
 
@@ -57,7 +37,7 @@ None
 
 ### Yesterday
 - **Focus**: What was actually completed
-- **Include**: Merged PRs, closed tickets, major commits, bugs found
+- **Include**: Merged PRs, closed tickets
 - **Format**: `[Item] - Description (Ticket)`
 - **Skip**: Minor commits, typo fixes, WIP that didn't complete
 - **Group**: Multiple commits on same ticket into one line
