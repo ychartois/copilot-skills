@@ -21,15 +21,16 @@ Generates concise, stakeholder-friendly daily updates by querying actual Jira an
 
 ## Configuration Loading
 
-1. **Check for project config**: Read `.github/skills/daily-update/config.md` in current workspace
-2. **Required config values**:
+1. **Check for project config**: Try to read `.github/skills/daily-update/config.md` in current workspace
+2. **Fallback to user config**: If not found, try `~/.copilot/skills/daily-update/config.md`
+3. **Required config values**:
    - Jira Cloud ID (UUID)
    - Jira Instance URL (e.g., `netfeasa.atlassian.net`)
    - Ticket Prefix (e.g., `CTA-`)
    - GitHub Repo (format: `owner/repo`)
    - Output Path (e.g., `.copilot/daily_update.md`)
-3. **If config not found**: Look for values in `.github/copilot-instructions.md` under "Project Context"
-4. **If still not found**: Ask user for these values and offer to create config file
+4. **If config not found**: Look for values in `.github/copilot-instructions.md` under "Project Context"
+5. **If still not found**: Ask user for these values and offer to create config file
 
 ## Prerequisites
 

@@ -28,7 +28,10 @@ This skill activates when the user requests:
 
 ### Step 2: Load Project Configuration (Optional)
 
-Try to read `.github/skills/pr-review/config.md` for project-specific guidelines.
+Try to read configuration in this order:
+1. `.github/skills/pr-review/config.md` (project-specific)
+2. `~/.copilot/skills/pr-review/config.md` (user defaults)
+3. `.github/copilot-instructions.md` (project context)
 
 **Config format**:
 ```markdown
@@ -36,6 +39,7 @@ Try to read `.github/skills/pr-review/config.md` for project-specific guidelines
 - **Architecture Patterns**: [docs/Architecture/]
 - **Testing Requirements**: Unit tests required for all new features
 - **Review Priorities**: Security, Performance, Offline-first patterns
+- **Code Quality Rules**: Logger usage, hook patterns, etc.
 ```
 
 If config doesn't exist, proceed with general review guidelines.

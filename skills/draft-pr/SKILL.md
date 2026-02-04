@@ -21,14 +21,15 @@ Creates pull request drafts following project conventions with validated title f
 
 ## Configuration Loading
 
-1. **Check for project config**: Read `.github/skills/draft-pr/config.md` in current workspace
-2. **Required config values**:
+1. **Check for project config**: Try to read `.github/skills/draft-pr/config.md` in current workspace
+2. **Fallback to user config**: If not found, try `~/.copilot/skills/draft-pr/config.md`
+3. **Required config values**:
    - Ticket Prefix (e.g., `CTA-`)
    - Branch Pattern (regex for validation)
    - CONTRIBUTING.md path
    - PR Check Workflow path (for reference)
-3. **If config not found**: Look for values in `.github/copilot-instructions.md` or CONTRIBUTING.md
-4. **If still not found**: Ask user for these values
+4. **If config not found**: Look for values in `.github/copilot-instructions.md` or CONTRIBUTING.md
+5. **If still not found**: Ask user for these values
 
 ## Prerequisites
 
