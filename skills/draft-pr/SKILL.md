@@ -112,27 +112,27 @@ If unclear from commits, ask user for type and summary.
 Use project's PR template if `.github/pull_request_template.md` exists, otherwise use this structure:
 
 ```markdown
-## Description
+**Jira Reference**
+
+[Refs|Fixes|Closes]: [TICKET-XXX](https://instance.atlassian.net/browse/TICKET-XXX)
+
+**Description**
 
 [Brief summary of what this PR does and why]
 
-## Changes
+**Changes**
 
 - Key change 1
 - Key change 2
 - Key change 3
 
-## Jira Reference
-
-[Refs|Fixes|Closes]: [TICKET-XXX](https://instance.atlassian.net/browse/TICKET-XXX)
-
-## Testing
+**Testing**
 
 - [ ] Unit tests added/updated
 - [ ] Manual testing completed
 - [ ] No breaking changes
 
-## Checklist
+**Checklist**
 
 - [ ] Code follows project conventions
 - [ ] Documentation updated if needed
