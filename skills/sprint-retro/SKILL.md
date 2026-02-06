@@ -40,154 +40,211 @@ Generates sprint retrospective documents by querying actual Jira and GitHub acti
 
 ## Workflow: Generate Retrospective
 
-### Step 1: Ask Questions First (CRITICAL)
+### Step 1: Gather Context (REQUIRED)
 
-**Never assume context. Always ask:**
-- Which sprint number is this? (e.g., Sprint 12)
-- What are the sprint dates? (start and end dates)
-- Where should I save the retro document? (default to config path)
-- Any special topics to include in the retro?
+**Ask user these questions**:
+1. Which sprint are we retrospecting? (e.g., Sprint 13)
+2. What are the ACTUAL sprint dates? (e.g., Feb 2 - Feb 6, 2026)
+3. What is the next sprint number? (e.g., Sprint 14)
 
-**Wait for user's answers before proceeding.**
+**Then automatically**:
+4. Calculate output filename: `docs/meetings/YYYY-MM-DD-SprintXX-YY-Retro-Planning.md`
+   - YYYY-MM-DD = last day of current sprint
+   - XX = current sprint number
+   - YY = next sprint number
+   - Example: `docs/meetings/2026-02-06-Sprint13-14-Retro-Planning.md`
+
+5. Read previous sprint retro to track action items:
+   - Look for most recent file matching pattern: `docs/meetings/*-Sprint*-Retro*.md`
+   - Extract action items, risks, blockers from previous sprint
 
 ### Step 2: Query Jira for Sprint Activity
 
-Use `mcp_atlassian_atl_searchJiraIssuesUsingJql` with date-filtered JQL:
+Use ACTUAL sprint dates from user (not updated field):
 
 ```jql
-project = {PROJECT_KEY}
-AND updated >= "{sprint_start_date}"
+project = CTA 
+AND (created >= "{sprint_start_date}" OR updated >= "{sprint_start_date}") 
 AND updated <= "{sprint_end_date}"
 ORDER BY status DESC, updated DESC
 ```
 
-Extract for each issue:
-- Issue key (e.g., CTA-350)
-- Summary
-- Status (Done, In Progress, To Do, etc.)
-- Type (Story, Bug, Task, Subtask)
-- Assignee
-- Created date
-- Updated date
-
-**Categorize issues**:
-- **Completed**: Status = Done, Closed, Resolved
-- **In Progress**: Status = In Progress, In Review, Need Review
-- **Not Started**: Status = To Do, Backlog
+**Categorize by status**:
+- **Done**: Status changed to Done during sprint
+- **In Progress**: Currently in progress or review
+- **Planned but not started**: In sprint backlog but not started
 
 ### Step 3: Query GitHub for Sprint PRs
 
-Use `mcp_github_github_list_pull_requests` or `mcp_github_github_search_pull_requests`:
+Search across all Net-Feasa-Limited repos:
 
 ```
-repo:owner/repo is:pr merged:{sprint_start_date}..{sprint_end_date}
+org:Net-Feasa-Limited is:pr merged:{sprint_start_date}..{sprint_end_date}
 ```
 
-Extract:
-- PR number
-- Title
-- Merged date
-- Author
-- Jira ticket from title/body
-
-### Step 4: Generate Retrospective Document
-
-Use this structure (can be customized via template in config):
-
-```markdown
-# Sprint {X} Retrospective — {Sprint Dates}
-
-**Date**: {Retro Meeting Date}
-**Attendees**: {Team Members}
-
----
-
-## Sprint {X} Review
-
-### Sprint Goal
-{Brief statement of what sprint aimed to achieve}
-
-### Completed Work
-
-#### Stories & Features
-{List of completed Jira stories/features with key outcomes}
-
-- [CTA-XXX] Story title — Brief outcome
-- [CTA-XXX] Story title — Brief outcome
-
-#### Bugs Fixed
-{List of bugs resolved during sprint}
-
-- [CTA-XXX] Bug description — Resolution
-- [CTA-XXX] Bug description — Resolution
-
-#### Pull Requests Merged
-{List of merged PRs with ticket references}
-
-- [PR #XXX] PR title (CTA-XXX)
-- [PR #XXX] PR title (CTA-XXX)
-
-### In Progress (Carried Over)
-{Work started but not completed}
-
-- [CTA-XXX] Description — Status and blocker if any
-
-### Not Started (Moved to Next Sprint)
-{Planned work that didn't get started}
-
-- [CTA-XXX] Description — Reason not started
-
----
-
-## Retrospective Discussion
-
-### What Went Well ✅
-{Successes, wins, positive outcomes}
-
--
-
-### What Could Be Improved 🔄
-{Challenges, inefficiencies, pain points}
-
--
-
-### Action Items 📋
-{Concrete steps to improve next sprint}
-
-- [ ] Action item 1
-- [ ] Action item 2
-
-### Blockers & Risks ⚠️
-{Active impediments or upcoming risks}
-
--
-
----
-
-## Sprint {X+1} Preview
-
-### Sprint Goal
-{To be filled after planning}
-
-### Planned Work
-{To be filled after planning}
-
-- [CTA-XXX] Description
-- [CTA-XXX] Description
-
-### Key Decisions
-{Important decisions made during planning}
-
--
-
----
-
-**Next Retrospective**: {Date}
+**Also get PRs in review**:
 ```
+org:Net-Feasa-Limited is:pr state:open updated:>={sprint_start_date}
+```
+
+### Step 4: Generate Retro Document Using Template
+
+**CRITICAL**: Must use EXACT template from `docs/meetings/RETROSPECTIVE-TEMPLATE.md`
+
+**Pre-fill these sections** (AUTO-GENERATED):
+- **Date**: Last day of sprint (YYYY-MM-DD format)
+- **Jira**: Link to sprint planning ticket (CTA-XX format)
+- **Sprint Goal**: Extract from sprint description or leave emoji placeholder
+- **Stories/Tasks Completed**: From Jira Done tickets with subtasks listed
+- **GitHub PRs Merged**: From GitHub query with full links and descriptions
+- **GitHub PRs In Review**: From GitHub open PR query
+
+**Leave BLANK for meeting discussion** (DO NOT FILL):
+- Time
+- Attendees
+- What went well
+- What didn't go well / can be improved
+- New Sprint: Sprint X+1 Planning Notes
+- Questions
+- Decisions Made
+- Action Items
+- Risks/Blockers
+- Sprint X+1 Preview (Goal, Planned Work)
 
 ### Step 5: Save Document
 
-Save to path from config (e.g., `docs/meetings/sprint-{X}-retro.md`)
+Save to: `docs/meetings/{YYYY-MM-DD}-Sprint{XX}-{YY}-Retro-Planning.md`
+
+**Filename format example**: `2026-02-06-Sprint13-14-Retro-Planning.md`
+
+**Use this EXACT template structure**:
+
+```markdown
+# Meeting Notes - Sprint {X} Retrospective - {Month Day, Year}
+
+**Project**: VCT Anywhere
+**Date**: YYYY-MM-DD  
+**Time**: HH:MM - HH:MM  
+**Type**: 🔄 Retrospective
+**Jira**: [CTA-XX](https://netfeasa.atlassian.net/browse/CTA-XX)
+
+---
+
+## Attendees
+<!-- to fill during meeting -->
+- Name, Name, Name
+
+---
+
+## Agenda
+1. Retrospective discussion (The Good / Can Be Improved)
+2. Review the board
+3. Create new Sprint and assign tasks
+4. Questions & decisions
+5. Identify blockers and risks
+
+---
+
+## Notes
+
+### Retro
+<!-- to fill during meeting discussion -->
+
+#### What went well
+- What went well this sprint
+- Positive outcomes
+- Successful practices
+
+#### What didn't go well/ can be improved
+- What could be better
+- Process improvements
+- Learning opportunities
+
+### Review the board: Sprint {X} Overview
+<!-- Auto-generated with /retro-sprint CTA-XX before meeting -->
+**Sprint Goal**: 
+- {Goal statement} [status emoji]
+
+**Stories/Tasks Completed**:
+<!-- Query Jira with: (updated >= "YYYY-MM-DD" AND updated <= "YYYY-MM-DD") AND status = Done -->
+- **CTA-XX**: Story title (**Status**: 🟡 Open | 🔵 In Progress | 🟢 Done | 🔴 Blocked)
+  - CTA-XX: Subtask 1 🟢 Done
+  - CTA-XX: Subtask 2 🟢 Done
+
+**GitHub PRs Merged (#)**:
+<!-- Query GitHub: all authors merged:YYYY-MM-DD..YYYY-MM-DD -->
+- [repo-name #XX](https://github.com/Net-Feasa-Limited/repo-name/pull/XX) - Description (CTA-XX)
+
+**GitHub PRs In Review (#)**:
+<!-- Query GitHub: all authors state:open updated:>=YYYY-MM-DD -->
+- [repo-name #XX](https://github.com/Net-Feasa-Limited/repo-name/pull/XX) - Description (CTA-XX)
+
+### Sprint X+1 Preview
+<!-- to update after meeting, with /retro-update command -->
+<!-- Query new sprint tickets from Jira after sprint planning -->
+
+**Sprint Goal**: 
+- Goal statement for next sprint
+
+**Planned Work**:
+- Main stories/tasks planned
+- Key deliverables
+- Team assignments
+
+
+### Questions
+<!-- Add specific questions raised during the sprint here -->
+- Question 1?
+- Question 2?
+- Question 3?
+
+---
+
+## Decisions Made
+<!-- to fill during meeting when team makes decisions -->
+| # | Decision | Rationale | Owner | Ticket |
+|---|----------|-----------|-------|--------|
+| 1 | We will... | Because... | @name | CTA-XX |
+| 2 | We decided not to... | Due to... | @name | - |
+
+---
+
+## Action Items
+<!-- to fill during meeting, create Jira tickets for trackable actions -->
+| # | Action | Owner | Due Date | Status | Ticket |
+|---|--------|-------|----------|--------|--------|
+| 1 | Do something | @name | YYYY-MM-DD | 🟡 Open | CTA-XX |
+| 2 | Research X | @name | YYYY-MM-DD | 🟡 Open | - |
+
+**Status**: 🟡 Open | 🔵 In Progress | 🟢 Done | 🔴 Blocked
+
+---
+
+## Risks / Blockers
+<!-- Update status of previous risks, add new ones identified during sprint -->
+<!-- Carry forward unresolved risks from previous sprint meeting notes -->
+| # | Risk | Owner | Mitigation | Status | Ticket |
+|---|------|-------|-----------|--------|--------|
+| 1 | Risk description | @name | How we'll address it | 🟡 Open | CTA-XX |
+| 2 | Blocker description | @name | Resolution plan | 🔴 Blocked | CTA-XX |
+
+**Status**: 🟡 Open | 🔵 In Progress | 🟢 Done | 🔴 Blocked
+
+---
+
+## Next Meeting
+**Date**: YYYY-MM-DD (Friday)  
+**Agenda**: Sprint {X+1} retrospective and planning
+
+---
+
+## Attachments / References
+<!-- Add links to key PRs, specs, or documentation discussed in meeting -->
+- [Relevant Jira Epic](https://netfeasa.atlassian.net/browse/CTA-XX)
+- [Related PR](https://github.com/Net-Feasa-Limited/ControlTower-Anywhere/pull/XX)
+- [Documentation](https://github.com/Net-Feasa-Limited/ControlTower-Anywhere/tree/main/docs)
+
+```
 
 Confirm with user:
 - "Saved retrospective to {path}"
