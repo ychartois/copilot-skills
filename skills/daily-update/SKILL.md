@@ -61,12 +61,12 @@ When user requests a daily update, you MUST execute these exact queries:
 ### Jira Queries (BOTH required)
 ```jql
 # Query 1: Yesterday's activity
-(assignee = currentUser() OR reporter = currentUser() OR comment ~ currentUser()) 
+assignee = currentUser() 
 AND updated >= startOfDay(-1d) AND updated < startOfDay()
 ORDER BY updated DESC
 
 # Query 2: Today's activity  
-(assignee = currentUser() OR reporter = currentUser() OR comment ~ currentUser())
+assignee = currentUser()
 AND updated >= startOfDay()
 ORDER BY updated DESC
 ```
@@ -76,22 +76,21 @@ ORDER BY updated DESC
 # Query 1: Get current user
 mcp_github_github_get_me
 
-# Query 2: Commits (yesterday onwards)
-mcp_github_github_list_commits(
-  owner, repo, 
-  author: username,
-  since: yesterday_start_timestamp,
-  perPage: 30
+# Query 2: Search for commits across entire organization (yesterday onwards)
+mcp_io_github_git_search_code(
+  query: "org:Net-Feasa-Limited author:ychartois committer-date:>=YYYY-MM-DD",
+  perPage: 100
 )
+Note: Use yesterday's date in YYYY-MM-DD format for committer-date filter
 
-# Query 3: Pull requests (last 7 days for context)
-mcp_github_github_list_pull_requests(
-  owner, repo,
-  state: "all",
-  sort: "updated", 
-  direction: "desc",
-  perPage: 20
+# Query 3: Search pull requests across entire organization (last 7 days)
+mcp_io_github_git_search_pull_requests(
+  query: "org:Net-Feasa-Limited author:ychartois updated:>=YYYY-MM-DD",
+  sort: "updated",
+  order: "desc",
+  perPage: 50
 )
+Note: Use 7 days ago date in YYYY-MM-DD format
 ```
 
 ## Workflow
@@ -149,40 +148,39 @@ ORDER BY updated DESC
 
 Extract same fields as Step 3.
 
-### Step 5: Query GitHub Activity (REQUIRED - DO NOT SKIP)
+### Step 5: Query GitHub Activity Across Organization (REQUIRED - DO NOT SKIP)
 
 **Get current user first**:
 ```
 mcp_github_github_get_me
 ```
 
-**Query commits (YESTERDAY's date range)**:
+**Search commits across Net-Feasa-Limited organization (YESTERDAY's date range)**:
 ```
-mcp_github_github_list_commits(
-  owner, repo, 
-  author: username, 
-  since: yesterday_start_timestamp,
-  perPage: 30
+mcp_io_github_git_search_code(
+  query: "org:Net-Feasa-Limited author:ychartois committer-date:>=YYYY-MM-DD",
+  perPage: 100
 )
 ```
-- Use yesterday's start timestamp (startOfDay(-1d))
-- Retrieve at least 30 commits to ensure coverage
-- Extract: commit SHA (first 8 chars), message (first line), Jira ticket from message
-- Group commits by Jira ticket reference
+- Use yesterday's date in YYYY-MM-DD format (e.g., 2026-02-05)
+- Retrieve up to 100 results to ensure full coverage across all repos
+- Extract: repository name, commit SHA (first 8 chars), message (first line), Jira ticket from message
+- Group commits by Jira ticket reference and repository
+- Note: GitHub code search finds commits across entire organization
 
-**Query pull requests (last 7 days for context)**:
+**Search pull requests across organization (last 7 days for context)**:
 ```
-mcp_github_github_list_pull_requests(
-  owner, repo, 
-  state: "all", 
-  sort: "updated", 
-  direction: "desc",
-  perPage: 20
+mcp_io_github_git_search_pull_requests(
+  query: "org:Net-Feasa-Limited author:ychartois updated:>=YYYY-MM-DD",
+  sort: "updated",
+  order: "desc",
+  perPage: 50
 )
 ```
-- Filter PRs updated in last 7 days
+- Use date from 7 days ago in YYYY-MM-DD format
+- Search across all Net-Feasa-Limited repositories
 - For each relevant PR, check if merged yesterday
-- Extract: PR number, title, Jira ticket, merged_at timestamp
+- Extract: repository name, PR number, title, Jira ticket, merged_at timestamp, state
 
 ### Step 6: Categorize Activity
 
