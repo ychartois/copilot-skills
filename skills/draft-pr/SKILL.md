@@ -172,7 +172,31 @@ If validation fails:
 3. Re-validate
 4. Do not proceed until validation passes
 
-### Step 7: Present Draft to User
+### Step 7: Save Draft to File (REQUIRED)
+
+**Always save the PR draft to `.copilot/draft_pr.md` before presenting to user.**
+
+File structure:
+```markdown
+# PR Draft for #<PR-NUMBER or "TBD">
+
+## Title
+```
+<generated-title>
+```
+
+## Body
+
+<generated-body-content>
+```
+
+This provides:
+- Persistent record of PR description
+- Easy editing by user if changes needed
+- Reference for future PR updates
+- Version control of PR content
+
+### Step 8: Present Draft to User
 
 Show complete draft:
 ```
@@ -184,6 +208,8 @@ Body:
 Base Branch: <base-branch>
 Head Branch: <current-branch>
 Draft: <true/false>
+
+Saved to: .copilot/draft_pr.md
 ```
 
 Ask user:
@@ -191,7 +217,7 @@ Ask user:
 - "Should I create the PR now?"
 - "Any changes needed?"
 
-### Step 8: Create PR (Only if User Confirms)
+### Step 9: Create PR (Only if User Confirms)
 
 If user approves, use MCP to create PR:
 
